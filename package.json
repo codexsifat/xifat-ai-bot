@@ -1,15 +1,16 @@
 {
   "name": "xifat-ai-bot",
   "version": "1.0.0",
-  "description": "Telegram bot with Groq AI",
+  "description": "Telegram AI Bot by XIFAT",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "node-telegram-bot-api": "^0.64.0"
+    "node-telegram-bot-api": "^0.64.0",
+    "archiver": "^5.3.1"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
   }
 }
