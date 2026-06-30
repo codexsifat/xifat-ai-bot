@@ -15,6 +15,28 @@ bot.onText(/\/start/, (msg) => {
   bot.sendMessage(msg.chat.id, `হ্যালো! আমি XIFAT AI ⚡\nGroq এর সুপার ফাস্ট AI দিয়ে চালিত।\nযেকোনো কিছু জিজ্ঞেস করো।`);
 });
 
+// ইমেজ জেনারেশন কমান্ড
+if (text.startsWith('/imagine ')) {
+  const prompt = text.replace('/imagine ', '');
+  
+  await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendChatAction`, {
+    chat_id: chatId,
+    action: 'upload_photo'
+  });
+  
+  const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1024&height=1024&seed=random`;
+  
+  await axios.post(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendPhoto`, {
+    chat_id: chatId,
+    photo: imageUrl,
+    caption: `🎨 Prompt: ${prompt}\nPowered by Pollinations AI`
+  });
+  
+  return;
+}
+
+
+
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text;
