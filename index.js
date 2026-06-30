@@ -15,7 +15,7 @@ bot.on('message', async (msg) => {
 
   // /start কমান্ড
   if(text === '/start') {
-    bot.sendMessage(chatId, 'হ্যালো ভাই! আমি XIFAT AI 🤖\n\n/imagine + Prompt = ছবি বানাবো\n/build + Prompt = ওয়েবসাইট zip দিবো\n\nযেমন: /imagine একটা বিড়াল');
+    bot.sendMessage(chatId, 'হ্যালো ভাই! আমি XIFAT AI 🤖\n\n/imagine + Prompt = ছবি বানাবো\n/build + Prompt = ওয়েবসাইট zip দিবো\nযেমন: /build simple portfolio');
     return;
   }
 
@@ -43,20 +43,20 @@ bot.on('message', async (msg) => {
     return;
   }
 
-  // /build কমান্ড - ওয়েবসাইট zip জেনারেটর
+  // /build কমান্ড - ওয়েবসাইট zip জেনারেটর v2.0
   if(text.toLowerCase().startsWith('/build')) {
     const prompt = text.replace(/\/build\s*/i, '').trim();
 
     if(!prompt) {
-      bot.sendMessage(chatId, '❌ Prompt দাও ভাই। যেমন: /build একটা portfolio website বানাও');
+      bot.sendMessage(chatId, '❌ Prompt দাও ভাই। যেমন: /build simple portfolio');
       return;
     }
 
-    bot.sendMessage(chatId, '⏳ XIFAT AI ওয়েবসাইট বানাচ্ছে... 15-20 সেকেন্ড লাগবে');
+    bot.sendMessage(chatId, '⏳ XIFAT AI ওয়েবসাইট বানাচ্ছে... 15-20 সেকেন্ড');
     bot.sendChatAction(chatId, 'upload_document');
 
     try {
-      // Groq দিয়ে কোড জেনারেট
+      // Groq দিয়ে কোড জেনারেট - শক্ত System Prompt
       let res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -66,22 +66,30 @@ bot.on('message', async (msg) => {
         body: JSON.stringify({
           model: "llama-3.1-70b-versatile",
           messages: [
-            {role: "system", content: "তুমি expert web developer। শুধু কোড দিবা। 3টা ফাইল: index.html, style.css, script.js. এই ফরম্যাটে দাও: ---index.html--- কোড ---style.css--- কোড ---script.js--- কোড"},
-            {role: "user", content: `বানাও: ${prompt}. Responsive, modern UI, clean design.`}
+            {role: "system", content: "তুমি expert web developer। শুধু কোড দিবা, কোনো কথা বলবা না। অবশ্যই এই 3টা মার্কার ঠিক এইভাবে দিবা: ---index.html--- তারপর HTML কোড ---style.css--- তারপর CSS কোড ---script.js--- তারপর JS কোড। মার্কার ছাড়া অন্য কিছু লিখবা না।"},
+            {role: "user", content: `Make a website: ${prompt}. Use only 3 files: index.html, style.css, script.js. Make it responsive, clean UI.`}
           ],
-          max_tokens: 3000
+          max_tokens: 4000,
+          temperature: 0.2
         })
       });
 
       let data = await res.json();
       let code = data.choices[0].message.content;
+      console.log("Groq Response:", code);
 
-      // 3টা ফাইল আলাদা করো
+      // মার্কার চেক
+      if(!code.includes('---index.html---') ||!code.includes('---style.css---') ||!code.includes('---script.js---')) {
+        bot.sendMessage(chatId, '❌ AI কোডের ফরম্যাট ভুল দিছে। আবার /build দাও।');
+        return;
+      }
+
+      // ফাইল আলাদা করো
       const html = code.split('---index.html---')[1].split('---style.css---')[0].trim();
       const css = code.split('---style.css---')[1].split('---script.js---')[0].trim();
-      const js = code.split('---script.js---')[1].replace(/```/g, '').trim();
+      const js = code.split('---script.js---')[1].replace(/```/g, '').replace(/javascript/gi, '').trim();
 
-      // Temp ফোল্ডার + ফাইল বানাও
+      // Temp ফোল্ডার বানাও
       const folderName = `website_${Date.now()}`;
       fs.mkdirSync(folderName);
       fs.writeFileSync(`${folderName}/index.html`, html);
@@ -93,9 +101,13 @@ bot.on('message', async (msg) => {
       const output = fs.createWriteStream(zipName);
       const archive = archiver('zip', { zlib: { level: 9 } });
 
-      archive.pipe(output);
-      archive.directory(folderName, false);
-      await archive.finalize();
+      await new Promise((resolve, reject) => {
+        archive.on('error', reject);
+        output.on('close', resolve);
+        archive.pipe(output);
+        archive.directory(folderName, false);
+        archive.finalize();
+      });
 
       // Telegram এ পাঠাও
       await bot.sendDocument(chatId, zipName, {
@@ -107,8 +119,8 @@ bot.on('message', async (msg) => {
       fs.unlinkSync(zipName);
 
     } catch(e) {
-      console.log(e);
-      bot.sendMessage(chatId, '❌ ওয়েবসাইট বানাতে পারি নাই। Prompt ছোট করে লিখো।');
+      console.log("BUILD ERROR:", e.message);
+      bot.sendMessage(chatId, '❌ এরর হইছে: ' + e.message);
     }
     return;
   }
